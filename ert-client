@@ -24,10 +24,8 @@ class Connection(object):
         if not self.ready:
             raise Exception("try to reuse connection object")
         
-        #print "to de sent to server: \n%s\n" % send
         self.socket.sendall( json.dumps(send) + "\n" )
         recv = self.socket.recv(1024)
-        #print "\nreceived from server: %s\n" % recv
 
         self.ready = False
         try:
