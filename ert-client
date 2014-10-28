@@ -35,6 +35,13 @@ class Connection(object):
         except:
             return ""
 
+
+    @staticmethod
+    def runCommand( cmd , port , host):
+        conn = Connection( port , host )
+        return conn.sendRecv( cmd )
+
+
 #-----------------------------------------------------------------
 # Get the working directory
 workingDir = getcwd()
@@ -98,17 +105,12 @@ else:
 
     # Try to initialize the simulations.
     # Create a socket to the server
-    conn = Connection(port, host)
 
     cmd = "INIT_SIMULATIONS"
     serverReq = [cmd, numberOfRuns,  ertSrcCaseName, ertDstCaseName]
     # Send the request and wait for server reply
     # Assume that the server only accepts one such initialization request per simulation batch
-    serverReply = conn.sendRecv(serverReq)
-
-    # Set and add the simulation
-    # Create a socket to the server
-    conn = Connection(port, host)
+    serverReply = Connection.runCommand(serverReq , port , host )
 
     cmd = "ADD_SIMULATION"
     
@@ -121,7 +123,7 @@ else:
     serverReq = serverReq + varValReq
 
     # Send the request and wait for server reply
-    serverReply = conn.sendRecv(serverReq)
+    serverReply = Connection.runCommand(serverReq , port , host )
 
     # Wait for the simulation to finish
     while 1>0:
@@ -129,11 +131,7 @@ else:
         cmd = "STATUS"
         serverReq = [cmd]
 
-        # Send the request and wait for server reply
-        # Create a socket to the server
-        conn = Connection(port, host)
-        
-        serverReply = conn.sendRecv(serverReq)
+        serverReply = Connection.runCommand(serverReq , port , host )
         if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
             break
     
@@ -142,10 +140,7 @@ else:
     for resultVar in results.keys():
         serverReq = [cmd, simulationId, reportStep, resultVar]
 
-        # Create a socket to the server
-        conn = Connection(port, host)
-
-        serverReply = conn.sendRecv(serverReq)
+        serverReply = Connection.runCommand(serverReq , port , host )
         if serverReply[0].strip() == "OK":
             results[resultVar] = serverReply[1:]
     
