@@ -6,40 +6,8 @@ from os import getcwd
 from os.path import join
 from glob import glob
 import time
+from ert.server import ErtClient
 
-class Connection(object):
-    def __init__(self , port , host = "localhost"):
-        self.socket = socket.socket( socket.AF_INET , socket.SOCK_STREAM)
-        self.port = port
-        self.host = host
-        self.socket.setblocking(1)
-        self.ready = True
-        try:
-            self.socket.connect((self.host , self.port))
-        except socket.error:
-            sys.exit("Failed to connect to port:%d at %s." % (port , host))
-
-
-    def sendRecv(self , send):
-        if not self.ready:
-            raise Exception("try to reuse connection object")
-        
-        #print "to de sent to server: \n%s\n" % send
-        self.socket.sendall( json.dumps(send) + "\n" )
-        recv = self.socket.recv(1024)
-        #print "\nreceived from server: %s\n" % recv
-
-        self.ready = False
-        try:
-            return json.loads(recv)
-        except:
-            return ""
-
-
-    @staticmethod
-    def runCommand( cmd , port , host):
-        conn = Connection( port , host )
-        return conn.sendRecv( cmd )
 
 
 #-----------------------------------------------------------------
@@ -110,7 +78,7 @@ else:
     serverReq = [cmd, numberOfRuns,  ertSrcCaseName, ertDstCaseName]
     # Send the request and wait for server reply
     # Assume that the server only accepts one such initialization request per simulation batch
-    serverReply = Connection.runCommand(serverReq , port , host )
+    serverReply = ErtClient.runCommand(serverReq , port , host )
 
     cmd = "ADD_SIMULATION"
     
@@ -123,7 +91,7 @@ else:
     serverReq = serverReq + varValReq
 
     # Send the request and wait for server reply
-    serverReply = Connection.runCommand(serverReq , port , host )
+    serverReply = ErtClient.runCommand(serverReq , port , host )
 
     # Wait for the simulation to finish
     while 1>0:
@@ -131,7 +99,7 @@ else:
         cmd = "STATUS"
         serverReq = [cmd]
 
-        serverReply = Connection.runCommand(serverReq , port , host )
+        serverReply = ErtClient.runCommand(serverReq , port , host )
         if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
             break
     
@@ -140,7 +108,7 @@ else:
     for resultVar in results.keys():
         serverReq = [cmd, simulationId, reportStep, resultVar]
 
-        serverReply = Connection.runCommand(serverReq , port , host )
+        serverReply = ErtClient.runCommand(serverReq , port , host )
         if serverReply[0].strip() == "OK":
             results[resultVar] = serverReply[1:]
     
