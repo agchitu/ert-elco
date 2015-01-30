@@ -180,7 +180,7 @@ else:
     init_request = elco_input.initSimulationRequest()
     if logging:
         logH.write("Sending request: %s \n" % init_request)
-    serverReply = ErtClient.runCommeand( init_request )
+    serverReply = ErtClient.runCommand( init_request )
     if logging:
         logH.write("Recieved: %s\n" % serverReply)
 
