@@ -158,7 +158,7 @@ def initLogging(log_path , elco_input):
         os.makedirs( log_path )
 
     log_file = os.path.join(log_path , "sim_%d_%d_%d" % (elco_input.geo_id , elco_input.pert_id , elco_input.sim_id))
-    return log_file
+    return open(log_file , "w")
 
 
 #-----------------------------------------------------------------
