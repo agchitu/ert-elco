@@ -72,7 +72,7 @@ class TestElcoDriver(unittest.TestCase):
 
     def test_requests(self):
         inp1 = self.module.ElcoInput("data/valid_controls.einp")
-        self.assertEqual( inp1.initSimulationRequest() , ["INIT_SIMULATION" , 88 , "default" , "Target"])
+        self.assertEqual( inp1.initSimulationRequest() , ["INIT_SIMULATIONS" , 88 , "default" , "Target"])
         self.assertEqual( inp1.addSimulationRequest() , ["ADD_SIMULATION" , 100 , 10 , 1 , [["CONTROL2" , 100, 200],["CONTROL1" , 1000 , 2000]]])
         
         inp1 = self.module.ElcoInput("data/valid_results.einp")

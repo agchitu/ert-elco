@@ -111,7 +111,7 @@ class ElcoInput(object):
 
 
     def initSimulationRequest(self):
-        return ["INIT_SIMULATION" , self.sim_size , self.getErtSrcName() , self.getErtTargetName()]
+        return ["INIT_SIMULATIONS" , self.sim_size , self.getErtSrcName() , self.getErtTargetName()]
         
     def addSimulationRequest(self):
         request = ["ADD_SIMULATION" , self.geo_id , self.pert_id , self.sim_id]
