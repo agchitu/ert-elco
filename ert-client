@@ -150,10 +150,19 @@ class ElcoInput(object):
                     outputFile.write("%15.7f " % value)
             outputFile.write("\n")
         
+#-----------------------------------------------------------------
 
+def initLogging(log_path , elco_input):
+    if not os.path.isdir(log_path):
+        os.makedirs( log_path )
+
+    log_file = os.path.join(log_path , "sim_%d_%d_%d" % (elco_input.geo_id , elco_input.pert_id , elco_input.sim_id))
+    return log_file
 
 
 #-----------------------------------------------------------------
+logging = True
+
 # Get the working directory
 workingDir = getcwd()
 
@@ -163,12 +172,32 @@ if len(inputFileNames) == 0:
     pass
 else:
     elco_input = ElcoInput( inputFileNames[0] )
+    if logging:
+        logH = initLogging("client_log" , elco_input)
     
-    serverReply = ErtClient.runCommeand( elco_input.initSimulationRequest() )
 
-    serverReply = ErtClient.runCommand( elco_input.addSimulationRequest() )
+    init_request = elco_input.initSimulationRequest()
+    if logging:
+        logH.write("Sending request: %s \n" % init_request)
+    serverReply = ErtClient.runCommeand( init_request )
+    if logging:
+        logH.write("Recieved: %s\n" % serverReply)
 
+
+    add_request = elco_input.addSimulationRequest()
+    if logging:
+        logH.write("Sending request: %s\n",add_request)
+    serverReply = ErtClient.runCommand( add_request )
+    if logging:
+        logH.write("Recieved: %s\n" % serverReply)
+
+
+    if logging:
+        logH.write("Waiting for simulation to complete ...\n")
     elco_input.blockingWait()
+    if logging:
+        logH.write("Simulation complete\n")
+
 
     for (result_var , request) in elco_input.getResultRequests():
         serverReply = ErtClient.runCommand( request )
