@@ -187,7 +187,7 @@ else:
 
     add_request = elco_input.addSimulationRequest()
     if logging:
-        logH.write("Sending request: %s\n",add_request)
+        logH.write("Sending request: %s\n" % add_request)
     serverReply = ErtClient.runCommand( add_request , elco_input.port , elco_input.host)
     if logging:
         logH.write("Recieved: %s\n" % serverReply)
