@@ -2,6 +2,7 @@
 import sys
 import socket
 import json
+import os.path
 from os import getcwd
 from os.path import join
 from glob import glob
