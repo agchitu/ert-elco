@@ -54,7 +54,7 @@ class ElcoInput(object):
         elif keyword == "HOST":
             self.host = value
         elif keyword == "PORT":
-            self.port = value
+            self.port = int(value)
         elif keyword == "MODELNAME":
             self.modelname = value
         elif keyword == "GEO_ID":
