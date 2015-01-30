@@ -180,7 +180,7 @@ else:
     init_request = elco_input.initSimulationRequest()
     if logging:
         logH.write("Sending request: %s \n" % init_request)
-    serverReply = ErtClient.runCommand( init_request )
+    serverReply = ErtClient.runCommand( init_request , elco_input.port , elco_input.host)
     if logging:
         logH.write("Recieved: %s\n" % serverReply)
 
@@ -188,7 +188,7 @@ else:
     add_request = elco_input.addSimulationRequest()
     if logging:
         logH.write("Sending request: %s\n",add_request)
-    serverReply = ErtClient.runCommand( add_request )
+    serverReply = ErtClient.runCommand( add_request , elco_input.port , elco_input.host)
     if logging:
         logH.write("Recieved: %s\n" % serverReply)
 
@@ -201,7 +201,7 @@ else:
 
 
     for (result_var , request) in elco_input.getResultRequests():
-        serverReply = ErtClient.runCommand( request )
+        serverReply = ErtClient.runCommand( request  , elco_input.port , elco_input.host)
         if serverReply[0] == "OK":
             elco_input.setResult( result_var , serverReply[1:] )
     
