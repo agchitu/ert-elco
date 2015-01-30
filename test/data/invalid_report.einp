@@ -1,0 +1,8 @@
+report_steps : kkjs
+
+PORT : 10000
+ModelName : ModelX
+GEO_ID : 100
+PerturbationId : 100
+SimulationId: 1
+NumberOfRuns : 88

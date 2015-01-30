@@ -6,7 +6,126 @@ from os import getcwd
 from os.path import join
 from glob import glob
 import time
+from collections import OrderedDict
 from ert_client import ErtClient
+
+
+class ElcoInput(object):
+
+    def initDefaults(self):
+        self.ert_src_name = "default"
+        self.ert_target_name = "elcoDefault"
+        self.report_step = 1
+        self.host = "localhost"
+        self.controls = OrderedDict()
+        self.results = OrderedDict()
+        
+
+    def assertRequired(self):
+        for key in ["sim_id" , "pert_id" , "geo_id" , "port" , "modelname" , "sim_size"]:
+            if not hasattr(self , key):
+                raise ValueError("Invalid input - missing:%s" % key)
+
+        
+
+    def __init__(self , input_file):
+        self.initDefaults()
+        self.input_file = input_file
+        with open(input_file) as fileH:
+            for line in fileH:
+                line = line.strip()
+                if line:
+                    tmp = line.split(":" ,1)
+                    if len(tmp) == 2:
+                        self.selectInput( tmp[0].strip().upper() , tmp[0].strip() , tmp[1].strip() )
+                    else:
+                        raise ValueError("Invalid input line:%s" % line)
+        self.assertRequired()
+
+
+    def selectInput(self , keyword , orgcase_keyword , value):
+        if keyword == "ERTSRCCASENAME":
+            self.ert_src_name = value
+        elif keyword == "ERTDSTCASENAME":
+            self.ert_target_name = value
+        elif keyword == "REPORT_STEPS":
+            self.report_step = int(value)
+        elif keyword == "HOST":
+            self.host = value
+        elif keyword == "PORT":
+            self.port = value
+        elif keyword == "MODELNAME":
+            self.modelname = value
+        elif keyword == "GEO_ID":
+            self.geo_id = int(value)
+        elif keyword == "PERTURBATIONID":
+            self.pert_id = int(value)
+        elif keyword == "SIMULATIONID":
+            self.sim_id = int(value)
+        elif keyword == "NUMBEROFRUNS":
+            self.sim_size = int(value)
+        else:
+            if value == "?":
+                self.results[orgcase_keyword] = True
+            else:
+                self.updateControl( orgcase_keyword , value)
+                
+
+    def hasResult(self , result):
+        return self.results.has_key(result)
+
+
+    def hasControl(self , control):
+        return self.controls.has_key( control )
+
+
+    def updateControl(self , control , value):
+        if not self.controls.has_key( control ):
+            self.controls[control] = []
+        self.controls[control].append( float(value) )
+
+    def getControl(self , control):
+        return self.controls[control]
+    
+    def getErtSrcName(self):
+        return self.ert_src_name
+
+    def getErtTargetName(self):
+        return self.ert_target_name
+
+    def getReportStep(self):
+        return self.report_step
+        
+    def getHost(self):
+        return self.host
+
+    def setResult(self , result , values):
+        if self.results.has_key( result ):
+            if isinstance(values , list):
+                self.results[result] = values
+            else:
+                raise ValueError("The result value must be a list of floats")
+        else:
+            raise KeyError("Unknown key:%s" % result)
+
+
+    def initSimulationRequest(self):
+        return ["INIT_SIMULATION" , self.sim_size , self.getErtSrcName() , self.getErtTargetName()]
+        
+    def addSimulationRequest(self):
+        request = ["ADD_SIMULATION" , self.geo_id , self.pert_id , self.sim_id]
+        control_args = []
+        for control in self.controls.keys():
+            control_args.append( [ control ] + self.getControl( control ))
+        request.append( control_args )
+        return request
+
+
+    def getResultRequests(self):
+        request_list = []
+        for result in self.results.keys():
+            request_list.append( ["GET_RESULT" , self.sim_id , self.report_step , result] )
+        return request_list
 
 
 
