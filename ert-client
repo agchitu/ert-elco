@@ -81,6 +81,8 @@ class ElcoInput(object):
 
 
     def updateControl(self , control , value):
+        tmp = control.split("_")
+        control = "_".join(tmp[:-1])
         if not self.controls.has_key( control ):
             self.controls[control] = []
         self.controls[control].append( float(value) )
