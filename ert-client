@@ -124,8 +124,32 @@ class ElcoInput(object):
     def getResultRequests(self):
         request_list = []
         for result in self.results.keys():
-            request_list.append( ["GET_RESULT" , self.sim_id , self.report_step , result] )
+            request_list.append( ( result , ["GET_RESULT" , self.sim_id , self.report_step , result]) )
         return request_list
+
+
+    def blockingWait(self):
+        # Wait for the simulation to finish
+        while 1>0:
+            time.sleep(3)
+            cmd = "STATUS"
+            serverReq = [cmd]
+
+            serverReply = ErtClient.runCommand(serverReq , port , host )
+            if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
+                break
+
+                
+
+    def saveResults(self):
+        output_file = self.input_file.replace(".einp" , ".eout")
+        with open(output_file , 'w') as outputFile:
+            for resultsVar in self.results.keys():
+                outputFile.write(resultsVar + " : ")
+                for value in results[resultsVar]:
+                    outputFile.write("%15.7f " % value)
+            outputFile.write("\n")
+        
 
 
 
@@ -138,104 +162,18 @@ inputFileNames = glob(join(workingDir, "*.einp"))
 if len(inputFileNames) == 0:
     pass
 else:
-    # Read the first input file and generata the message to the ERT server
-    host = "localhost"
-    port = 0
-    ertSrcCaseName = "default"
-    ertDstCaseName = "elcoDefault"
-    modelName = ""
-    geoId = -1
-    perturbationId = -1
-    simulationId = -1
-    numberOfRuns = -1
-    controls = dict()
-    results = dict()
-    reportStep = 1
-
-    with open(inputFileNames[0], 'r') as inputFile:
-        for line in inputFile:
-            words = line.replace("\n","").replace("\r", "").split(":")
-            if len(words) == 2:
-                if words[0].strip().upper()   == "HOST":
-                    host = words[1].strip()
-                elif words[0].strip().upper() == "PORT":
-                    port = int(words[1].strip())
-                elif words[0].strip().upper() == "ERTSRCCASENAME":
-                    ertSrcCaseName = words[1].strip()                
-                elif words[0].strip().upper() == "ERTDSTCASENAME":
-                    ertDstCaseName = words[1].strip()                
-                elif words[0].strip().upper() == "REPORT_STEPS":
-                    reportStep = int(words[1].strip())
-                elif words[0].strip() == "ModelName":
-                    modelName = words[1].strip()
-                elif words[0].strip() == "GEO_ID":
-                    geoId = int(words[1].strip())
-                elif words[0].strip() == "PerturbationId":
-                    perturbationId = int(words[1].strip())
-                elif words[0].strip() == "SimulationId":
-                    simulationId = int(words[1].strip())
-                elif words[0].strip() == "NumberOfRuns":
-                    numberOfRuns = int(words[1].strip())
-                else:
-                    # Is this a result?
-                    if( words[1].strip() == "?"):
-                        results[words[0].strip()] = "?"
-                    else:
-                        # Get the common control name
-                        nameIndex = words[0].strip().rfind('_');
-                        controlName = words[0].strip()[:nameIndex];
-                        if controlName in controls:
-                            controls[controlName].append(float(words[1].strip()))
-                        else:
-                            controls[controlName] = [float(words[1].strip())]
-
-
-    # Try to initialize the simulations.
-    # Create a socket to the server
-
-    cmd = "INIT_SIMULATIONS"
-    serverReq = [cmd, numberOfRuns,  ertSrcCaseName, ertDstCaseName]
-    # Send the request and wait for server reply
-    # Assume that the server only accepts one such initialization request per simulation batch
-    serverReply = ErtClient.runCommand(serverReq , port , host )
-
-    cmd = "ADD_SIMULATION"
+    elco_input = ElcoInput( inputFileNames[0] )
     
-    # Create the serto set the variables
-    serverReq = [cmd, geoId, perturbationId, simulationId]
-    varValReq = []
-    for controlVar in controls.keys():
-        varValReq.append( [ [ controlVar] + controls[controlVar]])
+    serverReply = ErtClient.runCommeand( elco_input.initSimulationRequest() )
 
-    serverReq = serverReq + varValReq
+    serverReply = ErtClient.runCommand( elco_input.addSimulationRequest() )
 
-    # Send the request and wait for server reply
-    serverReply = ErtClient.runCommand(serverReq , port , host )
+    elco_input.blockingWait()
 
-    # Wait for the simulation to finish
-    while 1>0:
-        time.sleep(3)
-        cmd = "STATUS"
-        serverReq = [cmd]
-
-        serverReply = ErtClient.runCommand(serverReq , port , host )
-        if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
-            break
+    for (result_var , request) in elco_input.getResultRequests():
+        serverReply = ErtClient.runCommand( request )
+        if serverReply[0] == "OK":
+            elco_input.setResult( result_var , serverReply[1:] )
     
-    # Get simulation results
-    cmd = "GET_RESULT"
-    for resultVar in results.keys():
-        serverReq = [cmd, simulationId, reportStep, resultVar]
+    elco_input.saveResults()
 
-        serverReply = ErtClient.runCommand(serverReq , port , host )
-        if serverReply[0].strip() == "OK":
-            results[resultVar] = serverReply[1:]
-    
-    # Save server's reply
-    with open(inputFileNames[0].replace(".einp", ".eout"), 'w') as outputFile:
-        for resultsVar in results.keys():
-            outputFile.write(resultsVar + " : ")
-            for value in results[resultsVar]:
-                outputFile.write("%15.7f " % value)
-            outputFile.write("\n")
-        

@@ -78,9 +78,9 @@ class TestElcoDriver(unittest.TestCase):
         inp1 = self.module.ElcoInput("data/valid_results.einp")
         request_list = inp1.getResultRequests()
         self.assertEqual( 2 , len(request_list))
-        self.assertEqual( request_list[0], ["GET_RESULT" , 1 , 100 , "RESULT1"])
-        self.assertEqual( request_list[1], ["GET_RESULT" , 1 , 100 , "Result2"])
-
+        self.assertEqual( request_list[0], ("RESULT1" , ["GET_RESULT" , 1 , 100 , "RESULT1"]))
+        self.assertEqual( request_list[1], ("Result2" , ["GET_RESULT" , 1 , 100 , "Result2"]))
+        
 
 
 if __name__ == "__main__":
