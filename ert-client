@@ -174,7 +174,7 @@ if len(inputFileNames) == 0:
 else:
     elco_input = ElcoInput( inputFileNames[0] )
     if logging:
-        logH = initLogging("client_log" , elco_input)
+        logH = initLogging("/tmp/client_log" , elco_input)
     
 
     init_request = elco_input.initSimulationRequest()
