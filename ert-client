@@ -138,7 +138,7 @@ class ElcoInput(object):
             cmd = "STATUS"
             serverReq = [cmd]
 
-            serverReply = ErtClient.runCommand(serverReq , port , host )
+            serverReply = ErtClient.runCommand(serverReq , self.port , self.host )
             if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
                 break
 
