@@ -1,0 +1,8 @@
+report_steps : 10
+
+PORT : 10000
+ModelName : ModelX
+GEO_ID : 100
+PerturbationId : 100
+
+

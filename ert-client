@@ -2,15 +2,170 @@
 import sys
 import socket
 import json
+import os.path
 from os import getcwd
 from os.path import join
 from glob import glob
 import time
+from collections import OrderedDict
 from ert_client import ErtClient
 
 
+class ElcoInput(object):
+
+    def initDefaults(self):
+        self.ert_src_name = "default"
+        self.ert_target_name = "elcoDefault"
+        self.report_step = 1
+        self.host = "localhost"
+        self.controls = OrderedDict()
+        self.results = OrderedDict()
+        
+
+    def assertRequired(self):
+        for key in ["sim_id" , "pert_id" , "geo_id" , "port" , "modelname" , "sim_size"]:
+            if not hasattr(self , key):
+                raise ValueError("Invalid input - missing:%s" % key)
+
+        
+
+    def __init__(self , input_file):
+        self.initDefaults()
+        self.input_file = input_file
+        with open(input_file) as fileH:
+            for line in fileH:
+                line = line.strip()
+                if line:
+                    tmp = line.split(":" ,1)
+                    if len(tmp) == 2:
+                        self.selectInput( tmp[0].strip().upper() , tmp[0].strip() , tmp[1].strip() )
+                    else:
+                        raise ValueError("Invalid input line:%s" % line)
+        self.assertRequired()
+
+
+    def selectInput(self , keyword , orgcase_keyword , value):
+        if keyword == "ERTSRCCASENAME":
+            self.ert_src_name = value
+        elif keyword == "ERTDSTCASENAME":
+            self.ert_target_name = value
+        elif keyword == "REPORT_STEPS":
+            self.report_step = int(value)
+        elif keyword == "HOST":
+            self.host = value
+        elif keyword == "PORT":
+            self.port = int(value)
+        elif keyword == "MODELNAME":
+            self.modelname = value
+        elif keyword == "GEO_ID":
+            self.geo_id = int(value)
+        elif keyword == "PERTURBATIONID":
+            self.pert_id = int(value)
+        elif keyword == "SIMULATIONID":
+            self.sim_id = int(value)
+        elif keyword == "NUMBEROFRUNS":
+            self.sim_size = int(value)
+        else:
+            if value == "?":
+                self.results[orgcase_keyword] = True
+            else:
+                self.updateControl( orgcase_keyword , value)
+                
+
+    def hasResult(self , result):
+        return self.results.has_key(result)
+
+
+    def hasControl(self , control):
+        return self.controls.has_key( control )
+
+
+    def updateControl(self , control , value):
+        tmp = control.split("_")
+        control = "_".join(tmp[:-1])
+        if not self.controls.has_key( control ):
+            self.controls[control] = []
+        self.controls[control].append( float(value) )
+
+    def getControl(self , control):
+        return self.controls[control]
+    
+    def getErtSrcName(self):
+        return self.ert_src_name
+
+    def getErtTargetName(self):
+        return self.ert_target_name
+
+    def getReportStep(self):
+        return self.report_step
+        
+    def getHost(self):
+        return self.host
+
+    def setResult(self , result , values):
+        if self.results.has_key( result ):
+            if isinstance(values , list):
+                self.results[result] = values
+            else:
+                raise ValueError("The result value must be a list of floats")
+        else:
+            raise KeyError("Unknown key:%s" % result)
+
+
+    def initSimulationRequest(self):
+        return ["INIT_SIMULATIONS" , self.sim_size , self.getErtSrcName() , self.getErtTargetName()]
+        
+    def addSimulationRequest(self):
+        request = ["ADD_SIMULATION" , self.geo_id , self.pert_id , self.sim_id]
+        control_args = []
+        for control in self.controls.keys():
+            control_args.append( [ control ] + self.getControl( control ))
+        request.append( control_args )
+        return request
+
+
+    def getResultRequests(self):
+        request_list = []
+        for result in self.results.keys():
+            request_list.append( ( result , ["GET_RESULT" , self.sim_id , self.report_step , result]) )
+        return request_list
+
+
+    def blockingWait(self):
+        # Wait for the simulation to finish
+        while 1>0:
+            time.sleep(3)
+            cmd = "STATUS"
+            serverReq = [cmd]
+
+            serverReply = ErtClient.runCommand(serverReq , self.port , self.host )
+            if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
+                break
+
+                
+
+    def saveResults(self):
+        output_file = self.input_file.replace(".einp" , ".eout")
+        with open(output_file , 'w') as outputFile:
+            for resultsVar in self.results.keys():
+                outputFile.write(resultsVar + " : ")
+                for value in results[resultsVar]:
+                    outputFile.write("%15.7f " % value)
+            outputFile.write("\n")
+        
+#-----------------------------------------------------------------
+
+def initLogging(log_path , elco_input):
+    if not os.path.isdir(log_path):
+        os.makedirs( log_path )
+
+    log_file = os.path.join(log_path , "sim_%d_%d_%d" % (elco_input.geo_id , elco_input.pert_id , elco_input.sim_id))
+    return open(log_file , "w")
+
 
 #-----------------------------------------------------------------
+logging = True
+
 # Get the working directory
 workingDir = getcwd()
 
@@ -19,104 +174,38 @@ inputFileNames = glob(join(workingDir, "*.einp"))
 if len(inputFileNames) == 0:
     pass
 else:
-    # Read the first input file and generata the message to the ERT server
-    host = "localhost"
-    port = 0
-    ertSrcCaseName = "default"
-    ertDstCaseName = "elcoDefault"
-    modelName = ""
-    geoId = -1
-    perturbationId = -1
-    simulationId = -1
-    numberOfRuns = -1
-    controls = dict()
-    results = dict()
-    reportStep = 1
-
-    with open(inputFileNames[0], 'r') as inputFile:
-        for line in inputFile:
-            words = line.replace("\n","").replace("\r", "").split(":")
-            if len(words) == 2:
-                if words[0].strip().upper()   == "HOST":
-                    host = words[1].strip()
-                elif words[0].strip().upper() == "PORT":
-                    port = int(words[1].strip())
-                elif words[0].strip().upper() == "ERTSRCCASENAME":
-                    ertSrcCaseName = words[1].strip()                
-                elif words[0].strip().upper() == "ERTDSTCASENAME":
-                    ertDstCaseName = words[1].strip()                
-                elif words[0].strip().upper() == "REPORT_STEPS":
-                    reportStep = int(words[1].strip())
-                elif words[0].strip() == "ModelName":
-                    modelName = words[1].strip()
-                elif words[0].strip() == "GEO_ID":
-                    geoId = int(words[1].strip())
-                elif words[0].strip() == "PerturbationId":
-                    perturbationId = int(words[1].strip())
-                elif words[0].strip() == "SimulationId":
-                    simulationId = int(words[1].strip())
-                elif words[0].strip() == "NumberOfRuns":
-                    numberOfRuns = int(words[1].strip())
-                else:
-                    # Is this a result?
-                    if( words[1].strip() == "?"):
-                        results[words[0].strip()] = "?"
-                    else:
-                        # Get the common control name
-                        nameIndex = words[0].strip().rfind('_');
-                        controlName = words[0].strip()[:nameIndex];
-                        if controlName in controls:
-                            controls[controlName].append(float(words[1].strip()))
-                        else:
-                            controls[controlName] = [float(words[1].strip())]
-
-
-    # Try to initialize the simulations.
-    # Create a socket to the server
-
-    cmd = "INIT_SIMULATIONS"
-    serverReq = [cmd, numberOfRuns,  ertSrcCaseName, ertDstCaseName]
-    # Send the request and wait for server reply
-    # Assume that the server only accepts one such initialization request per simulation batch
-    serverReply = ErtClient.runCommand(serverReq , port , host )
-
-    cmd = "ADD_SIMULATION"
+    elco_input = ElcoInput( inputFileNames[0] )
+    if logging:
+        logH = initLogging("/tmp/client_log" , elco_input)
     
-    # Create the serto set the variables
-    serverReq = [cmd, geoId, perturbationId, simulationId]
-    varValReq = []
-    for controlVar in controls.keys():
-        varValReq.append( [ [ controlVar] + controls[controlVar]])
 
-    serverReq = serverReq + varValReq
+    init_request = elco_input.initSimulationRequest()
+    if logging:
+        logH.write("Sending request: %s \n" % init_request)
+    serverReply = ErtClient.runCommand( init_request , elco_input.port , elco_input.host)
+    if logging:
+        logH.write("Recieved: %s\n" % serverReply)
 
-    # Send the request and wait for server reply
-    serverReply = ErtClient.runCommand(serverReq , port , host )
 
-    # Wait for the simulation to finish
-    while 1>0:
-        time.sleep(3)
-        cmd = "STATUS"
-        serverReq = [cmd]
+    add_request = elco_input.addSimulationRequest()
+    if logging:
+        logH.write("Sending request: %s\n" % add_request)
+    serverReply = ErtClient.runCommand( add_request , elco_input.port , elco_input.host)
+    if logging:
+        logH.write("Recieved: %s\n" % serverReply)
 
-        serverReply = ErtClient.runCommand(serverReq , port , host )
-        if len(serverReply) > 0 and serverReply[0].strip().upper() == "COMPLETE":
-            break
+
+    if logging:
+        logH.write("Waiting for simulation to complete ...\n")
+    elco_input.blockingWait()
+    if logging:
+        logH.write("Simulation complete\n")
+
+
+    for (result_var , request) in elco_input.getResultRequests():
+        serverReply = ErtClient.runCommand( request  , elco_input.port , elco_input.host)
+        if serverReply[0] == "OK":
+            elco_input.setResult( result_var , serverReply[1:] )
     
-    # Get simulation results
-    cmd = "GET_RESULT"
-    for resultVar in results.keys():
-        serverReq = [cmd, simulationId, reportStep, resultVar]
+    elco_input.saveResults()
 
-        serverReply = ErtClient.runCommand(serverReq , port , host )
-        if serverReply[0].strip() == "OK":
-            results[resultVar] = serverReply[1:]
-    
-    # Save server's reply
-    with open(inputFileNames[0].replace(".einp", ".eout"), 'w') as outputFile:
-        for resultsVar in results.keys():
-            outputFile.write(resultsVar + " : ")
-            for value in results[resultsVar]:
-                outputFile.write("%15.7f " % value)
-            outputFile.write("\n")
-        
