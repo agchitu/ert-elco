@@ -151,7 +151,7 @@ class ElcoInput(object):
                 outputFile.write(resultsVar + " : ")
                 for value in self.results[resultsVar]:
                     outputFile.write("%15.7f " % value)
-            outputFile.write("\n")
+                outputFile.write("\n")
         
 #-----------------------------------------------------------------
 
