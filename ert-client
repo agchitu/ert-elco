@@ -149,9 +149,9 @@ class ElcoInput(object):
         with open(output_file , 'w') as outputFile:
             for resultsVar in self.results.keys():
                 outputFile.write(resultsVar + " : ")
-                for value in results[resultsVar]:
+                for value in self.results[resultsVar]:
                     outputFile.write("%15.7f " % value)
-            outputFile.write("\n")
+                outputFile.write("\n")
         
 #-----------------------------------------------------------------
 
