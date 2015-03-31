@@ -1,0 +1,17 @@
+report_steps : 100
+ertdstcasename : Target
+
+PORT : 10000
+ModelName : ModelX
+GEO_ID : 100
+PerturbationId : 10
+SimulationId: 1
+NumberOfRuns : 88
+
+CONTROL2_001 : 100
+
+CONTROL1_001 : 1000
+CONTROL1_002 : 2000
+
+CONTROL2_002 : 200
+
